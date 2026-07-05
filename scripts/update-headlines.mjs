@@ -8,7 +8,7 @@
 //
 // No dependencies — plain Node 18+.
 
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -91,6 +91,19 @@ if (headlines.length < 5) collect(body);
 if (headlines.length < 3) {
   console.error(`Only ${headlines.length} usable headlines found — keeping previous data file.`);
   process.exit(1);
+}
+
+// Skip the write when nothing but the timestamp would change, so the
+// scheduled workflow doesn't create empty "update" commits twice a week.
+const payload = { edition: editionTitle, headlines: headlines.slice(0, MAX_HEADLINES) };
+if (existsSync(OUT)) {
+  try {
+    const prev = JSON.parse(readFileSync(OUT, 'utf8'));
+    if (JSON.stringify({ edition: prev.edition, headlines: prev.headlines }) === JSON.stringify(payload)) {
+      console.log(`No new headlines (still "${editionTitle}") — leaving data/headlines.json untouched.`);
+      process.exit(0);
+    }
+  } catch { /* unreadable previous file — rewrite it */ }
 }
 
 mkdirSync(dirname(OUT), { recursive: true });
