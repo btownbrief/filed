@@ -1,2 +1,8 @@
 .DS_Store
 node_modules/
+
+# local reference photos (some copyrighted) — never commit
+*.jpg
+*.jpeg
+*.png
+!icon-180.png

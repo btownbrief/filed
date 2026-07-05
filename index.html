@@ -7,8 +7,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#1d2733">
-<title>FILED! — Burlington's tallest game</title>
-<meta name="description" content="Process files. Dodge open drawers. Survive the World's Tallest Filing Cabinet. Burlington's tallest game.">
+<title>FILED! — Survive the World's Tallest Filing Cabinet</title>
+<meta name="description" content="Process files. Dodge open drawers. Survive Burlington's World's Tallest Filing Cabinet at sunset.">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -29,13 +29,14 @@
   </div>
 
   <button id="mute" aria-label="Toggle sound">🔊</button>
+<button id="news-hud" aria-label="Toggle Btown Brief headlines">📰</button>
 
   <!-- Title / character select -->
   <div id="menu" class="screen">
     <div class="menu-inner">
       <div id="logo">
         <div id="logo-stamp"><span>FILED!</span></div>
-        <div id="tagline">Burlington's tallest game</div>
+        <div id="tagline">Survive the<br><strong>World's Tallest Filing Cabinet</strong></div>
       </div>
       <div id="char-select">
         <div class="char-label">CHOOSE YOUR BUREAUCRAT</div>
@@ -52,10 +53,17 @@
           </button>
         </div>
       </div>
-      <div id="howto">
-        <span class="key">◀ TAP LEFT</span> or <span class="key">TAP RIGHT ▶</span><br>
-        PROCESS FILES · DODGE OPEN DRAWERS
+      <div id="mode-row">
+        <button class="mode-btn" data-mode="easy">EASY</button>
+        <button class="mode-btn" data-mode="hard">HARD</button>
       </div>
+      <div id="howto">
+        <div id="twohands">USE TWO HANDS</div>
+        <span class="key">👈 LEFT THUMB</span> <span class="key">RIGHT THUMB 👉</span><br>
+        DON'T GET FILED.
+      </div>
+      <button id="news-toggle">📰 BTOWN BRIEF HEADLINES: <span id="news-state">OFF</span></button>
+      <div id="ticker"></div>
       <div id="best-line"></div>
     </div>
   </div>
@@ -68,6 +76,7 @@
         <div id="go-score">0</div>
         <div id="go-score-label">FILES PROCESSED</div>
         <div id="go-joke"></div>
+        <div id="go-news"></div>
         <div id="go-best"></div>
       </div>
       <button id="retry">RESUBMIT<span class="sub">tap anywhere · space</span></button>

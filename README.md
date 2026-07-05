@@ -47,6 +47,28 @@ because the game uses ES modules.)
 - Force a season: `?season=winter` / `spring` / `summer` / `fall`
 - `window.__filed` exposes game state in the console for poking around
 
+## Btown Brief headline mode
+
+The optional **📰 headline mode** mixes real Burlington headlines from the
+[Btown Brief](https://www.btownbrief.com) newsletter into the flying paperwork
+(toggle it on the menu, or with the 📰 button during play).
+
+Headlines come from a small static file, `data/headlines.json` — players never
+hit the newsletter while playing. A GitHub Actions workflow
+(`.github/workflows/headlines.yml`) refreshes it twice a week:
+
+- **Schedule**: Monday + Friday at 14:30 UTC (10:30 EDT / 9:30 EST), safely
+  after the morning editions publish in either daylight-saving regime.
+- **Manual run**: Actions tab → "Update Btown Brief headlines" → Run workflow.
+- **Local test**: `node scripts/update-headlines.mjs` (Node 18+, no deps).
+
+The updater reads the Beehiiv RSS feed (each RSS item is a full edition with
+inline HTML), pulls the story headlines out of the newest edition's *Local
+News* section, filters junk and duplicates, and stores both the full headline
+and a display-shortened version. If extraction fails, it exits without
+writing, so the game keeps the last good file — and if no file exists at all,
+the game silently uses the classic Burlington stamp pool.
+
 ## Deploy to GitHub Pages
 
 The repo ships with a workflow (`.github/workflows/deploy.yml`) that publishes

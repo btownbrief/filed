@@ -9,48 +9,64 @@ import { currentSeason, renderBackdrop, makeWeather, drawWeather, PALETTES } fro
 
 const LS_BEST = 'filed.best';
 const LS_CHAR = 'filed.char';
+const LS_MODE = 'filed.mode';
+const LS_NEWS = 'filed.news';
 
+// Hyperlocal pool — the "lol, yep, that's Burlington" set. Intentionally small.
 const FILE_LABELS = [
-  'PERMIT APPROVED', 'PUBLIC COMMENT', 'MEETING MINUTES', 'PARKING STUDY',
-  'TRAFFIC STUDY', 'ACT 250', 'DESIGN REVISION', 'ZONING VARIANCE',
-  'BIKE LANE FEEDBACK', 'ANOTHER STUDY', 'TABLED', 'RESUBMIT', 'DRAFT 7',
-  'FINAL FINAL v3', 'SIDEWALK PLAN', 'NOISE COMPLAINT', 'LEAF PICKUP MAP',
-  'WETLAND MEMO', 'SEWER CAPACITY', 'FEASIBILITY STUDY', 'COMMUNITY INPUT',
-  'STEERING COMMITTEE', 'SITE PLAN REVIEW', 'CURB CUT REQUEST', 'SEE ATTACHMENT',
-  'STORMWATER PERMIT', 'APPENDIX K', 'Q3 VISIONING DECK', 'MORATORIUM(?)',
-  'PILOT PROGRAM', 'TASK FORCE NOTES', 'HISTORIC REVIEW', 'ROUNDABOUT PETITION',
-  'CHARRETTE RESULTS', 'SNOW PLOW ROUTES', 'COMPOST ORDINANCE',
+  'ACT 250', 'THE PIT', 'CHAMPLAIN PARKWAY', 'F-35', 'CITYPLACE',
+  'MORAN PLANT', 'PUBLIC COMMENT', 'TRAFFIC STUDY',
+  'ANOTHER STUDY', 'MORE PUBLIC COMMENT', 'PARKWAY DELAYED',
+  'THE PIT RETURNS', 'CITYPLACE UPDATE', 'F-35 HEARING',
+  'ACT 250 AGAIN', 'COMMITTEE MEETING',
 ];
 
 const DEATH_LINES = [
-  'PERMIT DENIED', 'TABLED UNTIL NEXT MEETING', 'NEEDS ANOTHER STUDY',
-  'PUBLIC COMMENT CLOSED', 'RESUBMIT WITH CHANGES', 'SEE YOU IN 38 YEARS',
-  'LOST IN COMMITTEE', 'DRAFT REJECTED', 'QUORUM NOT MET', 'FORM B-7 MISSING',
+  'PARKWAY DELAYED', 'THE PIT RETURNS', 'ACT 250 AGAIN',
+  'MORE PUBLIC COMMENT', 'F-35 HEARING', 'TABLED UNTIL NEXT MEETING',
+  'NEEDS ANOTHER STUDY', 'LOST IN COMMITTEE', 'SEE YOU IN 61 YEARS',
+  'RESUBMIT WITH CHANGES',
 ];
 const TIMEOUT_LINES = [
-  'BURIED IN PAPERWORK', 'DEADLINE MISSED', 'FISCAL YEAR ENDED',
+  'BURIED IN PAPERWORK', 'DEADLINE MISSED', 'COMMITTEE ADJOURNED',
   'OFFICE HOURS ARE OVER', 'GRANT WINDOW CLOSED',
 ];
 const GO_JOKES = [
   'A committee has been formed in your honor.',
   'Your feedback has been noted for the record.',
   'The cabinet remains undefeated since 2002.',
-  'Please take a number. Now serving: 4.',
   'This outcome will be studied. Extensively.',
   'Minutes of your defeat will be circulated.',
-  'An intern has been assigned to your case.',
-  'Next public hearing: the third Tuesday of never.',
+  'CityPlace broke ground faster than that run.',
+  'The Parkway took 61 years. You lasted less.',
+  'Public comment on your run is now open.',
 ];
+// The Burlington progress arc: keep filing and the city actually gets built.
 const MILESTONES = {
-  10: 'INTERN PROMOTED',
-  25: 'PUBLIC MEETING SURVIVED',
-  50: 'COMMITTEE FORMED',
-  75: 'ANOTHER STUDY COMPLETED',
-  100: 'CABINET RESPECTS YOU NOW',
-  150: 'ACT 250: CLEARED',
-  200: 'STANDING OVATION AT COUNCIL',
-  250: 'ZONING TRANSCENDED',
-  300: 'PAPERWORK SINGULARITY',
+  10: 'COMMITTEE FORMED',
+  25: 'PUBLIC COMMENT SURVIVED',
+  40: '$22M GRANT AWARDED',
+  60: 'RIBBON CUTTING',
+  80: '204 HOMES APPROVED',
+  100: 'CHAMPLAIN PARKWAY OPENS',
+  125: '61 YEARS LATER…',
+  150: 'THE PIT FILLS IN',
+  200: 'CITYPLACE RISES',
+  250: 'DOWNTOWN RECONNECTED',
+  300: 'WATERFRONT REBUILT',
+  400: 'PROJECT COMPLETE',
+};
+
+// Difficulty modes. HARD ≈ classic Timberman pressure; EASY still bites late.
+const MODES = {
+  easy: {
+    start: 0.55, drainBase: 0.070, drainRamp: 0.00028, drainCap: 0.150,
+    gainBase: 0.075, gainDecay: 0.00011, gainMin: 0.038,
+  },
+  hard: {
+    start: 0.45, drainBase: 0.085, drainRamp: 0.00032, drainCap: 0.175,
+    gainBase: 0.062, gainDecay: 0.00012, gainMin: 0.030,
+  },
 };
 
 /* ============================== dom refs ============================== */
@@ -111,6 +127,10 @@ let best = parseInt(localStorage.getItem(LS_BEST) || '0', 10) || 0;
 let timer = 1, started = false;
 let playerSide = -1;          // -1 left, +1 right
 let charKey = localStorage.getItem(LS_CHAR) in CHARS ? localStorage.getItem(LS_CHAR) : 'dot';
+let modeKey = localStorage.getItem(LS_MODE) in MODES ? localStorage.getItem(LS_MODE) : 'easy';
+let newsOn = localStorage.getItem(LS_NEWS) === '1';
+let headlines = [];           // [{full, short}] from data/headlines.json
+let streak = 0, lastTapAt = -1e9;   // burst-of-rapid-taps momentum
 let stampT = 999;             // ms since last stamp
 let dropOff = 0;              // stack settle animation offset
 let wobble = 0, wobbleV = 0;  // cabinet wobble spring
@@ -169,7 +189,8 @@ function resetRun() {
   segments = [];
   genState = { lastHz: 0, run: 0, gap: 99, made: 0, lastSide: Math.random() < 0.5 ? -1 : 1 };
   for (let i = 0; i < nSegs; i++) pushSegment();
-  score = 0; timer = 1; started = false;
+  score = 0; timer = MODES[modeKey].start; started = false;
+  streak = 0; lastTapAt = -1e9;
   playerSide = -1; stampT = 999; dropOff = 0; wobble = 0; wobbleV = 0; shake = 0;
   chips.length = 0; papers.length = 0; floats.length = 0;
   beatBestThisRun = false;
@@ -181,9 +202,17 @@ function resetRun() {
 
 /* ============================== difficulty ============================== */
 
-// Steady-state taps/sec needed: ~0.8 at start, ~1.4 @100, ~2.2 @200, ~3.5 @300, ~4.3 cap.
-function drainRate() { return Math.min(0.155, 0.065 + Math.min(score, 420) * 0.00028); }
-function tapGain() { return Math.max(0.036, 0.078 - score * 0.00012); }
+// Drain ramps with score; gain shrinks with score; short bursts of rapid
+// successful taps add a subtle momentum bonus (up to +40%) that hesitation kills.
+function drainRate() {
+  const m = MODES[modeKey];
+  return Math.min(m.drainCap, m.drainBase + Math.min(score, 420) * m.drainRamp);
+}
+function tapGain() {
+  const m = MODES[modeKey];
+  const base = Math.max(m.gainMin, m.gainBase - score * m.gainDecay);
+  return base * (1 + streak * 0.05);
+}
 
 /* ============================== core tap ============================== */
 
@@ -200,6 +229,9 @@ function tap(side) {
   const removed = segments.shift();
   pushSegment();
   score++;
+  const now = performance.now();
+  streak = now - lastTapAt < 450 ? Math.min(streak + 1, 8) : 0;
+  lastTapAt = now;
   timer = Math.min(1, timer + tapGain());
   scoreEl.textContent = String(score);
   scoreEl.classList.remove('pop'); void scoreEl.offsetWidth; scoreEl.classList.add('pop');
@@ -262,6 +294,14 @@ function showGameOver() {
   const years = (score * 3.8) / 365;
   const yearsTxt = years >= 0.1 ? `${years.toFixed(1)} YEARS OF PAPERWORK CLEARED. ` : '';
   goJoke.textContent = yearsTxt + GO_JOKES[Math.floor(Math.random() * GO_JOKES.length)];
+  const goNews = document.getElementById('go-news');
+  if (newsOn && headlines.length > 0) {
+    const h = headlines[Math.floor(Math.random() * headlines.length)];
+    goNews.innerHTML = '<span class="brand">FROM THE LATEST BTOWN BRIEF</span>';
+    goNews.append('“' + h.full + '”');
+  } else {
+    goNews.textContent = '';
+  }
   const isBest = score > best;
   if (isBest) {
     best = score;
@@ -323,14 +363,46 @@ function spawnPapers(x, y, n, dir) {
 }
 
 function spawnFloat() {
+  const newsAlive = floats.some((f) => f.news);
+  const useNews = newsOn && headlines.length > 0 && !newsAlive && Math.random() < 0.55;
+  const txt = useNews
+    ? headlines[Math.floor(Math.random() * headlines.length)].short.toUpperCase()
+    : FILE_LABELS[Math.floor(Math.random() * FILE_LABELS.length)];
   floats.push({
-    txt: FILE_LABELS[Math.floor(Math.random() * FILE_LABELS.length)],
-    x: cx + (Math.random() - 0.5) * cabW,
+    txt,
+    news: useNews,
+    x: useNews ? cx : cx + (Math.random() - 0.5) * cabW,
     y: groundY - segH * (1.3 + Math.random() * 1.2),
-    life: 1100,
+    life: useNews ? 1500 : 1100,
   });
   if (floats.length > 2) floats.shift();
   sound.flutter();
+}
+
+/* ============================== Btown Brief headlines ============================== */
+// Static JSON produced twice weekly by .github/workflows/headlines.yml.
+// If it's missing or stale we silently fall back to the classic stamp pool.
+fetch('data/headlines.json')
+  .then((r) => (r.ok ? r.json() : null))
+  .then((d) => {
+    if (d && Array.isArray(d.headlines)) {
+      headlines = d.headlines.filter((h) => h && h.short);
+      startTicker();
+    }
+  })
+  .catch(() => { /* offline or first deploy — classic pool only */ });
+
+let tickerIdx = 0, tickerTimer = null;
+function startTicker() {
+  const el = document.getElementById('ticker');
+  if (!el || headlines.length === 0) return;
+  const show = () => {
+    el.textContent = '📰 ' + headlines[tickerIdx % headlines.length].short;
+    tickerIdx++;
+  };
+  show();
+  clearInterval(tickerTimer);
+  tickerTimer = setInterval(show, 4200);
 }
 
 function showMilestone(txt) {
@@ -493,7 +565,24 @@ function drawPlayer(c) {
   const facing = -playerSide; // face the cabinet
   const pose = stampT < 260 ? 'stamp' : 'idle';
   const poseT = Math.min(1, stampT / 260);
+  drawPlayerBacklight(c, px);
   drawFn(c, px, groundY, playerH, facing, pose, poseT, time);
+}
+
+// Subtle warm sunset backlight + contact shadow so the character pops
+// against the dusk foreground without a cheap glowing outline.
+function drawPlayerBacklight(c, px) {
+  const cy = groundY - playerH * 0.5;
+  const g = c.createRadialGradient(px, cy, playerH * 0.1, px, cy, playerH * 0.8);
+  g.addColorStop(0, 'rgba(255,196,120,0.30)');
+  g.addColorStop(0.6, 'rgba(255,170,110,0.12)');
+  g.addColorStop(1, 'rgba(255,170,110,0)');
+  c.fillStyle = g;
+  c.beginPath(); c.arc(px, cy, playerH * 0.8, 0, 7); c.fill();
+  c.fillStyle = 'rgba(0,0,0,0.35)';
+  c.beginPath();
+  c.ellipse(px, groundY + 2, playerH * 0.30, playerH * 0.05, 0, 0, 7);
+  c.fill();
 }
 
 /* ============================== render loop ============================== */
@@ -524,6 +613,7 @@ function update(dt, now) {
     timer -= drainRate() * dt / 1000;
     if (timer <= 0) { timer = 0; die('timeout'); }
     timerWrap.classList.toggle('low', timer < 0.3);
+    if (streak > 0 && now - lastTapAt > 900) streak = 0;  // hesitation kills momentum
   }
   timerFill.style.transform = `scaleX(${timer})`;
 
@@ -640,15 +730,18 @@ function render(now, dt) {
     ctx.globalAlpha = 1;
   }
 
-  // floating file labels
+  // floating file labels (gold = classic stamps, blue = Btown Brief headlines)
   for (const f of floats) {
     const a = Math.max(0, Math.min(1, f.life / 300));
     ctx.globalAlpha = a;
-    ctx.font = `800 ${Math.max(12, segH * 0.24)}px -apple-system, Arial, sans-serif`;
+    const size = f.news
+      ? Math.max(10, Math.min(segH * 0.21, (W * 0.84) / (f.txt.length * 0.60)))
+      : Math.max(12, segH * 0.24);
+    ctx.font = `800 ${size}px -apple-system, Arial, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(20,28,36,.85)';
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(16,14,34,.9)';
     ctx.strokeText(f.txt, f.x, f.y);
-    ctx.fillStyle = '#ffe08a';
+    ctx.fillStyle = f.news ? '#9fd8ff' : '#ffe08a';
     ctx.fillText(f.txt, f.x, f.y);
   }
   ctx.globalAlpha = 1;
@@ -659,12 +752,12 @@ function render(now, dt) {
 
 let cloudSeeds = [0.15, 0.5, 0.8];
 function drawClouds(c, now) {
-  c.fillStyle = 'rgba(255,255,255,.65)';
+  c.fillStyle = 'rgba(64,52,104,.38)';   // drifting dusk clouds
   cloudSeeds.forEach((s, i) => {
     const speed = 0.000006 * (i + 1);
     const x = ((s + now * speed) % 1.2 - 0.1) * W;
-    const y = H * (0.08 + i * 0.05);
-    const r = W * 0.045;
+    const y = H * (0.06 + i * 0.045);
+    const r = W * 0.04;
     c.beginPath();
     c.arc(x, y, r, 0, 7);
     c.arc(x + r * 0.9, y + r * 0.25, r * 0.75, 0, 7);
@@ -699,6 +792,50 @@ function selectChar(key, andStart) {
 function updateBestLine() {
   bestLine.textContent = best > 0 ? `BEST: ${best} FILES` : '';
 }
+
+/* ---- difficulty mode + headline mode toggles ---- */
+const newsToggle = document.getElementById('news-toggle');
+const newsState = document.getElementById('news-state');
+const newsHud = document.getElementById('news-hud');
+
+function renderModeButtons() {
+  document.querySelectorAll('.mode-btn').forEach((b) =>
+    b.classList.toggle('selected', b.dataset.mode === modeKey));
+}
+function setMode(key) {
+  if (!(key in MODES)) return;
+  modeKey = key;
+  localStorage.setItem(LS_MODE, key);
+  renderModeButtons();
+}
+document.querySelectorAll('.mode-btn').forEach((b) => {
+  b.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    sound.unlock(); sound.blip();
+    setMode(b.dataset.mode);
+  });
+});
+
+function renderNewsUI() {
+  newsToggle.classList.toggle('on', newsOn);
+  newsState.textContent = newsOn ? 'ON' : 'OFF';
+  newsHud.classList.toggle('on', newsOn);
+}
+function toggleNews() {
+  newsOn = !newsOn;
+  localStorage.setItem(LS_NEWS, newsOn ? '1' : '0');
+  renderNewsUI();
+}
+newsToggle.addEventListener('pointerdown', (e) => {
+  e.preventDefault(); e.stopPropagation();
+  sound.unlock(); sound.blip();
+  toggleNews();
+});
+newsHud.addEventListener('pointerdown', (e) => {
+  e.preventDefault(); e.stopPropagation();
+  sound.unlock(); sound.blip();
+  toggleNews();
+});
 
 /* ============================== input ============================== */
 
@@ -779,6 +916,8 @@ muteBtn.textContent = sound.muted ? '🔇' : '🔊';
 layout();
 resetRun();
 renderCharCards();
+renderModeButtons();
+renderNewsUI();
 updateBestLine();
 requestAnimationFrame(frame);
 
@@ -789,6 +928,11 @@ window.__filed = {
   get segments() { return segments.map((s) => s.hz); },
   get side() { return playerSide; },
   get timer() { return timer; },
+  get mode() { return modeKey; },
+  get streak() { return streak; },
+  get newsOn() { return newsOn; },
+  get headlineCount() { return headlines.length; },
+  setMode, toggleNews,
   tap, startGame, toMenu,
   setTimer(v) { timer = v; },
   step(dt) { update(dt, performance.now()); },
