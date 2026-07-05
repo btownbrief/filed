@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect width="100" height="100" rx="20" fill="#1d2733"/>
+  <!-- filing cabinet -->
+  <rect x="30" y="12" width="40" height="80" fill="#79909f"/>
+  <rect x="34" y="18" width="32" height="14" fill="none" stroke="#2c3843" stroke-width="2"/>
+  <rect x="44" y="24" width="12" height="4" rx="1" fill="#3b4854"/>
+  <rect x="34" y="38" width="32" height="14" fill="none" stroke="#2c3843" stroke-width="2"/>
+  <rect x="44" y="44" width="12" height="4" rx="1" fill="#3b4854"/>
+  <rect x="34" y="58" width="32" height="14" fill="none" stroke="#2c3843" stroke-width="2"/>
+  <rect x="44" y="64" width="12" height="4" rx="1" fill="#3b4854"/>
+  <ellipse cx="62" cy="30" rx="6" ry="9" fill="#a35a2e" opacity=".55"/>
+  <ellipse cx="38" cy="70" rx="5" ry="8" fill="#a35a2e" opacity=".45"/>
+  <!-- stamp mark -->
+  <g transform="rotate(-12 50 78)">
+    <rect x="18" y="66" width="64" height="24" rx="5" fill="none" stroke="#ff4433" stroke-width="4"/>
+    <text x="50" y="84" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="17" fill="#ff4433" text-anchor="middle">FILED!</text>
+  </g>
+</svg>

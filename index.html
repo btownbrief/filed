@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1d2733">
+<title>FILED! — Burlington's tallest game</title>
+<meta name="description" content="Process files. Dodge open drawers. Survive the World's Tallest Filing Cabinet. Burlington's tallest game.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="game"></canvas>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div id="score-wrap">
+      <div id="score">0</div>
+      <div id="score-label">FILES</div>
+    </div>
+    <div id="timer-wrap"><div id="timer-fill"></div></div>
+    <div id="milestone"></div>
+  </div>
+
+  <button id="mute" aria-label="Toggle sound">🔊</button>
+
+  <!-- Title / character select -->
+  <div id="menu" class="screen">
+    <div class="menu-inner">
+      <div id="logo">
+        <div id="logo-stamp"><span>FILED!</span></div>
+        <div id="tagline">Burlington's tallest game</div>
+      </div>
+      <div id="char-select">
+        <div class="char-label">CHOOSE YOUR BUREAUCRAT</div>
+        <div id="char-cards">
+          <button class="char-card" data-char="dot" aria-label="Play as Dot">
+            <canvas class="char-canvas" width="140" height="180"></canvas>
+            <div class="char-name">DOT</div>
+            <div class="char-bio">Deputy Zoning Administrator.<br>Runs on maple lattes &amp; spite.</div>
+          </button>
+          <button class="char-card" data-char="bernie" aria-label="Play as Gil">
+            <canvas class="char-canvas" width="140" height="180"></canvas>
+            <div class="char-name">GIL</div>
+            <div class="char-bio">Permit Compliance Officer.<br>Has never missed a meeting.</div>
+          </button>
+        </div>
+      </div>
+      <div id="howto">
+        <span class="key">◀ TAP LEFT</span> or <span class="key">TAP RIGHT ▶</span><br>
+        PROCESS FILES · DODGE OPEN DRAWERS
+      </div>
+      <div id="best-line"></div>
+    </div>
+  </div>
+
+  <!-- Game over -->
+  <div id="gameover" class="screen hidden">
+    <div class="menu-inner">
+      <div id="go-stamp"><span id="go-verdict">PERMIT DENIED</span></div>
+      <div id="go-score-wrap">
+        <div id="go-score">0</div>
+        <div id="go-score-label">FILES PROCESSED</div>
+        <div id="go-joke"></div>
+        <div id="go-best"></div>
+      </div>
+      <button id="retry">RESUBMIT<span class="sub">tap anywhere · space</span></button>
+      <button id="go-menu">CHANGE BUREAUCRAT</button>
+    </div>
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,310 @@
+/* FILED! — Burlington's tallest game */
+@font-face { font-family: 'system-stamp'; src: local('Arial Black'); }
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: #1d2733;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #fff;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  position: fixed;
+  inset: 0;
+}
+
+#app { position: fixed; inset: 0; overflow: hidden; }
+
+#game {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+.hidden { display: none !important; }
+
+/* ---------- HUD ---------- */
+#hud {
+  position: absolute;
+  top: max(10px, env(safe-area-inset-top));
+  left: 0; right: 0;
+  text-align: center;
+  pointer-events: none;
+  z-index: 5;
+}
+
+#score {
+  font-size: clamp(44px, 13vw, 72px);
+  font-weight: 900;
+  letter-spacing: -1px;
+  color: #fff;
+  text-shadow: 0 3px 0 rgba(0,0,0,.35), 0 6px 18px rgba(0,0,0,.3);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  transition: transform .08s;
+}
+#score.pop { transform: scale(1.14); }
+
+#score-label {
+  font-size: clamp(12px, 3.4vw, 16px);
+  font-weight: 800;
+  letter-spacing: .42em;
+  margin-top: 2px;
+  color: rgba(255,255,255,.85);
+  text-shadow: 0 2px 6px rgba(0,0,0,.4);
+}
+
+#timer-wrap {
+  width: min(62vw, 300px);
+  height: 14px;
+  margin: 10px auto 0;
+  background: rgba(0,0,0,.42);
+  border-radius: 8px;
+  border: 2px solid rgba(255,255,255,.75);
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,.3);
+}
+#timer-fill {
+  height: 100%;
+  width: 100%;
+  border-radius: 5px;
+  background: linear-gradient(90deg, #ffd24a, #ff9d2e);
+  transform-origin: left center;
+  transition: background .2s;
+}
+#timer-wrap.low #timer-fill { background: linear-gradient(90deg, #ff5c4a, #d92b1e); }
+#timer-wrap.low { animation: timerPulse .5s infinite alternate; }
+@keyframes timerPulse {
+  from { box-shadow: 0 0 0 0 rgba(255,60,40,.0); }
+  to   { box-shadow: 0 0 14px 3px rgba(255,60,40,.55); }
+}
+
+#milestone {
+  margin-top: 10px;
+  font-size: clamp(13px, 3.8vw, 17px);
+  font-weight: 800;
+  letter-spacing: .12em;
+  color: #ffe08a;
+  text-shadow: 0 2px 0 rgba(0,0,0,.5);
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity .25s, transform .25s;
+}
+#milestone.show { opacity: 1; transform: translateY(0); }
+
+/* ---------- mute ---------- */
+#mute {
+  position: absolute;
+  top: max(10px, env(safe-area-inset-top));
+  right: max(10px, env(safe-area-inset-right));
+  z-index: 20;
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  border: 2px solid rgba(255,255,255,.5);
+  background: rgba(0,0,0,.35);
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+#mute:active { transform: scale(.92); }
+
+/* ---------- screens ---------- */
+.screen {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 16px);
+}
+
+#menu { background: linear-gradient(rgba(14,20,28,.25), rgba(14,20,28,.55)); }
+
+.menu-inner {
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(10px, 2.6vh, 22px);
+}
+
+/* logo */
+#logo-stamp {
+  display: inline-block;
+  padding: clamp(8px, 1.6vh, 14px) clamp(20px, 6vw, 34px);
+  border: 6px solid #d92b1e;
+  border-radius: 14px;
+  transform: rotate(-4deg);
+  background: rgba(255,252,240,.06);
+  box-shadow: 0 6px 24px rgba(0,0,0,.45);
+  animation: stampIn .45s cubic-bezier(.2, 2.4, .4, 1) both;
+}
+#logo-stamp span {
+  font-size: clamp(46px, 15vw, 76px);
+  font-weight: 900;
+  letter-spacing: .02em;
+  color: #ff4433;
+  text-shadow: 0 3px 0 rgba(0,0,0,.4);
+  font-family: "Arial Black", -apple-system, sans-serif;
+}
+@keyframes stampIn {
+  0% { transform: rotate(-4deg) scale(2.6); opacity: 0; }
+  100% { transform: rotate(-4deg) scale(1); opacity: 1; }
+}
+#tagline {
+  margin-top: 10px;
+  font-size: clamp(13px, 3.8vw, 16px);
+  font-weight: 700;
+  letter-spacing: .18em;
+  color: #ffe08a;
+  text-transform: uppercase;
+  text-shadow: 0 2px 4px rgba(0,0,0,.6);
+}
+
+/* character select */
+.char-label {
+  font-size: clamp(11px, 3vw, 13px);
+  font-weight: 800;
+  letter-spacing: .3em;
+  color: rgba(255,255,255,.75);
+  margin-bottom: 10px;
+}
+#char-cards { display: flex; gap: 14px; justify-content: center; }
+.char-card {
+  background: rgba(24,34,46,.88);
+  border: 3px solid rgba(255,255,255,.28);
+  border-radius: 16px;
+  padding: 10px 12px 12px;
+  cursor: pointer;
+  color: #fff;
+  font-family: inherit;
+  transition: transform .12s, border-color .12s, box-shadow .12s;
+  touch-action: manipulation;
+  width: clamp(140px, 41vw, 168px);
+}
+.char-card:active { transform: scale(.96); }
+.char-card.selected {
+  border-color: #ffd24a;
+  box-shadow: 0 0 0 3px rgba(255,210,74,.25), 0 8px 24px rgba(0,0,0,.4);
+  transform: translateY(-3px);
+}
+.char-canvas { width: 100%; height: auto; display: block; }
+.char-name {
+  font-size: 19px; font-weight: 900; letter-spacing: .2em; margin-top: 4px;
+}
+.char-bio {
+  font-size: 11px; line-height: 1.45; color: rgba(255,255,255,.66); margin-top: 5px;
+  min-height: 32px;
+}
+
+#howto {
+  font-size: clamp(13px, 3.6vw, 15px);
+  font-weight: 800;
+  letter-spacing: .1em;
+  line-height: 2;
+  color: rgba(255,255,255,.9);
+  text-shadow: 0 2px 4px rgba(0,0,0,.55);
+}
+#howto .key {
+  display: inline-block;
+  padding: 2px 10px;
+  border: 2px solid rgba(255,255,255,.55);
+  border-radius: 8px;
+  background: rgba(0,0,0,.3);
+}
+#best-line {
+  font-size: 13px; font-weight: 700; letter-spacing: .14em; color: #8fd6ff;
+  text-shadow: 0 2px 4px rgba(0,0,0,.5);
+  min-height: 17px;
+}
+
+/* ---------- game over ---------- */
+#gameover { background: rgba(10, 14, 20, .55); }
+
+#go-stamp {
+  display: inline-block;
+  padding: 10px 22px;
+  border: 5px solid #d92b1e;
+  border-radius: 12px;
+  transform: rotate(-5deg);
+  animation: stampIn .32s cubic-bezier(.2, 2.6, .4, 1) both;
+  background: rgba(30,8,6,.35);
+  max-width: 92vw;
+}
+#go-verdict {
+  display: block;
+  font-size: clamp(24px, 7vw, 40px);
+  font-weight: 900;
+  color: #ff4433;
+  letter-spacing: .03em;
+  font-family: "Arial Black", -apple-system, sans-serif;
+  text-shadow: 0 2px 0 rgba(0,0,0,.5);
+  max-width: 80vw;
+  line-height: 1.15;
+}
+#go-score { font-size: clamp(52px, 17vw, 84px); font-weight: 900; line-height: 1; text-shadow: 0 4px 0 rgba(0,0,0,.4); font-variant-numeric: tabular-nums; }
+#go-score-label { font-size: 14px; font-weight: 800; letter-spacing: .35em; color: rgba(255,255,255,.8); margin-top: 4px; }
+#go-joke {
+  margin-top: 12px; font-size: clamp(13px, 3.8vw, 15px); font-weight: 700;
+  color: #ffe08a; letter-spacing: .06em; min-height: 18px;
+}
+#go-best { margin-top: 6px; font-size: 13px; font-weight: 700; letter-spacing: .12em; color: #8fd6ff; min-height: 16px; }
+#go-best.new-best { color: #ffd24a; font-size: 16px; animation: bestPulse .6s infinite alternate; }
+@keyframes bestPulse { from { transform: scale(1); } to { transform: scale(1.08); } }
+
+#retry {
+  font-family: inherit;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: .14em;
+  color: #1d2733;
+  background: linear-gradient(#ffe08a, #ffc23e);
+  border: none;
+  border-radius: 16px;
+  padding: 14px 44px 10px;
+  cursor: pointer;
+  box-shadow: 0 5px 0 #b57f14, 0 10px 24px rgba(0,0,0,.4);
+  touch-action: manipulation;
+}
+#retry:active { transform: translateY(3px); box-shadow: 0 2px 0 #b57f14; }
+#retry .sub { display: block; font-size: 10px; font-weight: 700; letter-spacing: .12em; opacity: .6; margin-top: 2px; }
+
+#go-menu {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .18em;
+  color: rgba(255,255,255,.75);
+  background: transparent;
+  border: 2px solid rgba(255,255,255,.35);
+  border-radius: 10px;
+  padding: 8px 18px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+#go-menu:active { transform: scale(.95); }
+
+/* very short screens (landscape phones) */
+@media (max-height: 480px) {
+  .menu-inner { gap: 8px; }
+  #logo-stamp span { font-size: 34px; }
+  .char-canvas { max-height: 90px; width: auto; margin: 0 auto; }
+  .char-bio { display: none; }
+}
