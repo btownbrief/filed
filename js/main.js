@@ -67,18 +67,19 @@ const MILESTONES = {
   400: 'PROJECT COMPLETE',
 };
 
-// Difficulty modes. Savage: the bar visibly plummets and each file buys a
-// sliver. EASY demands ~4.5 accurate taps/sec sustained (with streak bonus);
-// HARD ~6.5 — the human ceiling. Idle bar-empty from the start level:
-// ~2.1s on EASY, ~1.3s on HARD. Hesitate and it's already over.
+// Difficulty modes. The time economy is savage but FLAT: EASY demands
+// ~4.5 accurate taps/sec, HARD ~6.5, and that requirement barely creeps.
+// Escalation comes from the cabinet itself — drawer density and longer
+// same-side runs ramp up (see nextHazard), so long runs die to routing
+// mistakes, not to an unwinnable timer.
 const MODES = {
   easy: {
-    start: 0.50, drainBase: 0.24, drainRamp: 0.0006, drainCap: 0.42,
-    gainBase: 0.038, gainDecay: 0.00015, gainMin: 0.016,
+    start: 0.50, drainBase: 0.24, drainRamp: 0.00005, drainCap: 0.27,
+    gainBase: 0.042, gainDecay: 0.00002, gainMin: 0.036,
   },
   hard: {
-    start: 0.42, drainBase: 0.32, drainRamp: 0.0008, drainCap: 0.55,
-    gainBase: 0.035, gainDecay: 0.00016, gainMin: 0.013,
+    start: 0.42, drainBase: 0.32, drainRamp: 0.00006, drainCap: 0.36,
+    gainBase: 0.038, gainDecay: 0.00003, gainMin: 0.032,
   },
 };
 
@@ -188,9 +189,11 @@ const floats = []; // floating file-label texts
 
 function nextHazard() {
   const g = genState;
-  const d = Math.min(1, g.made / 180);            // 0..1 difficulty, ramps faster
-  const pHaz = 0.36 + 0.32 * d;
-  const maxRun = g.made < 35 ? 2 : d < 0.6 ? 3 : 4;
+  // Difficulty over time = MORE OBSTACLES: drawer density climbs to 75%,
+  // same-side runs stretch to 5 deep. The timer stays winnable throughout.
+  const d = Math.min(1, g.made / 140);
+  const pHaz = 0.38 + 0.37 * d;
+  const maxRun = g.made < 30 ? 2 : d < 0.5 ? 3 : d < 0.85 ? 4 : 5;
   const minGap = g.made < 25 ? 2 : 1;
   let hz = 0;
 
