@@ -257,6 +257,8 @@ function showGameOver() {
   const lines = deathKind === 'timeout' ? TIMEOUT_LINES : DEATH_LINES;
   goVerdict.textContent = lines[Math.floor(Math.random() * lines.length)];
   goScore.textContent = String(score);
+  document.getElementById('go-score-label').textContent =
+    score === 1 ? 'FILE PROCESSED' : 'FILES PROCESSED';
   const years = (score * 3.8) / 365;
   const yearsTxt = years >= 0.1 ? `${years.toFixed(1)} YEARS OF PAPERWORK CLEARED. ` : '';
   goJoke.textContent = yearsTxt + GO_JOKES[Math.floor(Math.random() * GO_JOKES.length)];
