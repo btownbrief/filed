@@ -57,17 +57,18 @@ const MILESTONES = {
   400: 'PROJECT COMPLETE',
 };
 
-// Difficulty modes. Merciless: every file buys only a sliver of time and the
-// drain keeps climbing. EASY demands ~3 accurate taps/sec from the first file,
-// HARD ~4.5. Idle bar-empty from the half-full start: ~3.7s EASY, ~2.2s HARD.
+// Difficulty modes. Savage: the bar visibly plummets and each file buys a
+// sliver. EASY demands ~4.5 accurate taps/sec sustained (with streak bonus);
+// HARD ~6.5 — the human ceiling. Idle bar-empty from the start level:
+// ~2.1s on EASY, ~1.3s on HARD. Hesitate and it's already over.
 const MODES = {
   easy: {
-    start: 0.55, drainBase: 0.150, drainRamp: 0.00045, drainCap: 0.29,
-    gainBase: 0.048, gainDecay: 0.00012, gainMin: 0.022,
+    start: 0.50, drainBase: 0.24, drainRamp: 0.0006, drainCap: 0.42,
+    gainBase: 0.038, gainDecay: 0.00015, gainMin: 0.016,
   },
   hard: {
-    start: 0.45, drainBase: 0.200, drainRamp: 0.00055, drainCap: 0.38,
-    gainBase: 0.044, gainDecay: 0.00013, gainMin: 0.018,
+    start: 0.42, drainBase: 0.32, drainRamp: 0.0008, drainCap: 0.55,
+    gainBase: 0.035, gainDecay: 0.00016, gainMin: 0.013,
   },
 };
 
