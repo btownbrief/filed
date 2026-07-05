@@ -12,13 +12,23 @@ const LS_CHAR = 'filed.char';
 const LS_MODE = 'filed.mode';
 const LS_NEWS = 'filed.news';
 
-// Hyperlocal pool — the "lol, yep, that's Burlington" set. Intentionally small.
+// Hyperlocal pool — the full "lol, yep, that's Burlington" set.
+// Drawn from a shuffled deck so every stamp gets equal airtime.
 const FILE_LABELS = [
+  // core civic references
   'ACT 250', 'CHAMPLAIN PARKWAY', 'F-35', 'CITYPLACE',
   'MORAN PLANT', 'PUBLIC COMMENT', 'TRAFFIC STUDY',
+  // bureaucracy / delay jokes
   'ANOTHER STUDY', 'MORE PUBLIC COMMENT', 'PARKWAY DELAYED',
-  'CITYPLACE UPDATE', 'F-35 HEARING',
-  'ACT 250 AGAIN', 'COMMITTEE MEETING',
+  'CITYPLACE UPDATE', 'F-35 HEARING', 'ACT 250 AGAIN',
+  'COMMITTEE FORMED', 'COMMITTEE MEETING',
+  // things actually happening
+  'CHAMPLAIN PARKWAY OPENS', '61 YEARS LATER', 'RIBBON CUTTING',
+  'PROJECT APPROVED', 'HOUSING APPROVED', '204 HOMES APPROVED',
+  'AFFORDABLE HOUSING', 'BIKE PATH REBUILT', 'GREAT STREETS',
+  'MAIN STREET UPGRADE', 'DOWNTOWN RECONNECTED', '$22M GRANT AWARDED',
+  'THE PIT FILLS IN', 'CITYPLACE RISES', 'NEW HOUSING OPENS',
+  'WATERFRONT REBUILT', 'PROJECT COMPLETE',
 ];
 
 const DEATH_LINES = [
@@ -878,10 +888,13 @@ function render(now, dt) {
       size = Math.max(11, Math.min(segH * 0.22, (W * 0.9) / (longest * 0.62)));
     }
     ctx.font = `800 ${size}px -apple-system, Arial, sans-serif`;
+    // keep the whole label on screen even when spawned off-center
+    const halfW = Math.max(...lines.map((l) => ctx.measureText(l).width)) / 2;
+    const fx = Math.min(Math.max(f.x, halfW + 4), W - halfW - 4);
     lines.forEach((l, i) => {
       const ly = f.y + (i - (lines.length - 1) / 2) * size * 1.25;
-      ctx.strokeText(l, f.x, ly);
-      ctx.fillText(l, f.x, ly);
+      ctx.strokeText(l, fx, ly);
+      ctx.fillText(l, fx, ly);
     });
   }
   ctx.globalAlpha = 1;
