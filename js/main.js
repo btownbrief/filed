@@ -57,17 +57,17 @@ const MILESTONES = {
   400: 'PROJECT COMPLETE',
 };
 
-// Difficulty modes. Fast drain, stingy gains: the bar is a race you can lose.
-// EASY needs ~1.7 accurate taps/sec from the first file; HARD needs ~2.9 and
-// only escalates. Idle bar-empty time: ~4.4s on EASY, ~2.5s on HARD (from half).
+// Difficulty modes. Merciless: every file buys only a sliver of time and the
+// drain keeps climbing. EASY demands ~3 accurate taps/sec from the first file,
+// HARD ~4.5. Idle bar-empty from the half-full start: ~3.7s EASY, ~2.2s HARD.
 const MODES = {
   easy: {
-    start: 0.55, drainBase: 0.105, drainRamp: 0.00030, drainCap: 0.21,
-    gainBase: 0.062, gainDecay: 0.00010, gainMin: 0.032,
+    start: 0.55, drainBase: 0.150, drainRamp: 0.00045, drainCap: 0.29,
+    gainBase: 0.048, gainDecay: 0.00012, gainMin: 0.022,
   },
   hard: {
-    start: 0.45, drainBase: 0.150, drainRamp: 0.00040, drainCap: 0.27,
-    gainBase: 0.052, gainDecay: 0.00011, gainMin: 0.026,
+    start: 0.45, drainBase: 0.200, drainRamp: 0.00055, drainCap: 0.38,
+    gainBase: 0.044, gainDecay: 0.00013, gainMin: 0.018,
   },
 };
 
@@ -177,10 +177,10 @@ const floats = []; // floating file-label texts
 
 function nextHazard() {
   const g = genState;
-  const d = Math.min(1, g.made / 240);            // 0..1 difficulty
-  const pHaz = 0.34 + 0.28 * d;
-  const maxRun = g.made < 45 ? 2 : d < 0.7 ? 3 : 4;
-  const minGap = g.made < 30 ? 2 : 1;
+  const d = Math.min(1, g.made / 180);            // 0..1 difficulty, ramps faster
+  const pHaz = 0.36 + 0.32 * d;
+  const maxRun = g.made < 35 ? 2 : d < 0.6 ? 3 : 4;
+  const minGap = g.made < 25 ? 2 : 1;
   let hz = 0;
 
   if (g.lastHz !== 0) {
@@ -274,6 +274,7 @@ function tap(side) {
   }
   scoreEl.textContent = String(score);
   scoreEl.classList.remove('pop'); void scoreEl.offsetWidth; scoreEl.classList.add('pop');
+  if (score > best) updateBestHud();   // BEST climbs live once you pass it
 
   // juice
   stampT = 0;
@@ -339,6 +340,15 @@ function showGameOver() {
     const h = headlines[Math.floor(Math.random() * headlines.length)];
     goNews.innerHTML = '<span class="brand">FROM THE LATEST BTOWN BRIEF</span>';
     goNews.append('“' + h.full + '”');
+    if (editionLink) {
+      const a = document.createElement('a');
+      a.href = editionLink;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.id = 'go-news-link';
+      a.textContent = 'READ THE FULL EDITION →';
+      goNews.append(a);
+    }
   } else {
     goNews.textContent = '';
   }
@@ -356,9 +366,17 @@ function showGameOver() {
   hudEl.classList.add('hidden');
 }
 
+const bestHud = document.getElementById('best-hud');
+function updateBestHud() {
+  const beating = score > 0 && score >= best && best > 0;
+  bestHud.textContent = best > 0 ? `BEST ${Math.max(best, score)}` : '';
+  bestHud.classList.toggle('beaten', beating);
+}
+
 function startGame() {
   runId++;
   resetRun();
+  updateBestHud();
   state = 'play';
   menuEl.classList.add('hidden');
   gameoverEl.classList.add('hidden');
@@ -411,8 +429,11 @@ function spawnFloat() {
     txt,
     news: useNews,
     x: useNews ? cx : cx + (Math.random() - 0.5) * cabW,
-    y: groundY - segH * (1.3 + Math.random() * 1.2),
-    life: useNews ? 1500 : 1100,
+    // headlines get their own quiet lane below the ground line, never on
+    // top of the classic stamps or the play area
+    y: useNews ? groundY + (H - groundY) * 0.42 : groundY - segH * (1.3 + Math.random() * 1.2),
+    vy: useNews ? 0.008 : 0.045,
+    life: useNews ? 1700 : 1100,
   });
   if (floats.length > 2) floats.shift();
   sound.flutter();
@@ -421,11 +442,14 @@ function spawnFloat() {
 /* ============================== Btown Brief headlines ============================== */
 // Static JSON produced twice weekly by .github/workflows/headlines.yml.
 // If it's missing or stale we silently fall back to the classic stamp pool.
-fetch('data/headlines.json')
+let editionLink = '', editionName = '';
+fetch('data/headlines.json', { cache: 'no-cache' })
   .then((r) => (r.ok ? r.json() : null))
   .then((d) => {
     if (d && Array.isArray(d.headlines)) {
       headlines = d.headlines.filter((h) => h && h.short);
+      editionLink = d.link || '';
+      editionName = d.edition || '';
       newsDeck = makeDeck(headlines);
       startTicker();
     }
@@ -436,6 +460,7 @@ let tickerIdx = 0, tickerTimer = null;
 function startTicker() {
   const el = document.getElementById('ticker');
   if (!el || headlines.length === 0) return;
+  if (editionLink) el.href = editionLink;
   const show = () => {
     el.textContent = '📰 ' + headlines[tickerIdx % headlines.length].short;
     tickerIdx++;
@@ -529,10 +554,6 @@ function drawSegment(c, yTop, seg) {
     c.fill();
     c.fillStyle = 'rgba(255,255,255,.25)';
     c.fillRect(x + w * 0.42, yTop + h * 0.56, w * 0.16, h * 0.04);
-    // I VOTED sticker slapped on this section (collect it from that side!)
-    if (seg.sticker !== 0) {
-      drawVotedSticker(c, cx + seg.sticker * w * 0.30, yTop + h * 0.5, h * 0.36, segRnd(seg.seed, 70) * 0.5 - 0.25);
-    }
   } else {
     // OPEN DRAWER — the hazard. Slides far out to one side.
     const dir = seg.hz;                       // -1 left, +1 right
@@ -622,6 +643,21 @@ function drawCabinet(c) {
     const yTop = groundY - (i + 1) * segH - dropOff;
     if (yTop + segH < 0) break;
     drawSegment(c, yTop, segments[i]);
+    // I VOTED sticker floats BESIDE the section like a power-up — stand on
+    // its side when this section reaches you to grab it.
+    const seg = segments[i];
+    if (seg.hz === 0 && seg.sticker !== 0) {
+      const bob = Math.sin(time * 0.005 + seg.seed) * segH * 0.06;
+      const sx = cx + seg.sticker * (cabW / 2 + drawerExt * 0.40);
+      const sy = yTop + segH * 0.5 + bob;
+      // soft pickup glow
+      const glow = c.createRadialGradient(sx, sy, segH * 0.05, sx, sy, segH * 0.42);
+      glow.addColorStop(0, 'rgba(255,230,160,.45)');
+      glow.addColorStop(1, 'rgba(255,230,160,0)');
+      c.fillStyle = glow;
+      c.beginPath(); c.arc(sx, sy, segH * 0.42, 0, 7); c.fill();
+      drawVotedSticker(c, sx, sy, segH * 0.40, Math.sin(time * 0.003 + seg.seed) * 0.18);
+    }
   }
   // plinth
   c.fillStyle = '#3a4650';
@@ -729,7 +765,7 @@ function update(dt, now) {
   }
   for (let i = floats.length - 1; i >= 0; i--) {
     const f = floats[i];
-    f.y -= dt * 0.045;
+    f.y -= dt * (f.vy ?? 0.045);
     f.life -= dt;
     if (f.life <= 0) floats.splice(i, 1);
   }
@@ -974,7 +1010,7 @@ document.addEventListener('contextmenu', (e) => {
 });
 
 gameoverEl.addEventListener('pointerdown', (e) => {
-  if (e.target === goMenuBtn) return;
+  if (e.target === goMenuBtn || e.target.closest('a')) return;  // let links be links
   if (performance.now() - overShownAt < 350) return;
   e.preventDefault();
   sound.unlock();
