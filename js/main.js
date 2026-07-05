@@ -10,7 +10,7 @@ import { currentSeason, renderBackdrop, makeWeather, drawWeather, PALETTES } fro
 const LS_BEST = 'filed.best';
 const LS_CHAR = 'filed.char';
 const LS_MODE = 'filed.mode';
-const LS_NEWS = 'filed.news';
+const LS_NEWS = 'filed.news2';   // v2: re-defaults everyone to ON once
 
 // Hyperlocal pool — the full "lol, yep, that's Burlington" set.
 // Drawn from a shuffled deck so every stamp gets equal airtime.
@@ -959,7 +959,6 @@ function updateBestLine() {
 
 /* ---- difficulty mode + headline mode toggles ---- */
 const newsToggle = document.getElementById('news-toggle');
-const newsState = document.getElementById('news-state');
 const newsHud = document.getElementById('news-hud');
 
 function renderModeButtons() {
@@ -982,7 +981,9 @@ document.querySelectorAll('.mode-btn').forEach((b) => {
 
 function renderNewsUI() {
   newsToggle.classList.toggle('on', newsOn);
-  newsState.textContent = newsOn ? 'ON' : 'OFF';
+  newsToggle.textContent = newsOn
+    ? '📰 TURN OFF REAL BTOWN HEADLINES'
+    : '📰 TURN ON REAL BTOWN HEADLINES';
   newsHud.classList.toggle('on', newsOn);
   document.getElementById('news-chip').classList.toggle('hidden', !newsOn);
 }
