@@ -264,15 +264,16 @@ export function renderBackdrop(bg, W, H, groundY, season) {
   const cabW = Math.min(W * 0.40, segH * 2.35);
   const gutter = Math.max(60, (W - cabW) / 2);   // width of each side gutter
 
-  // LEFT: Boathouse behind, Spirit of Ethan Allen docked in front (as in life)
-  const bhW = Math.min(gutter * 0.92, H * 0.22);
-  const bhX = Math.max(4, gutter * 0.04);
-  drawBoathouse(ctx, bhX, shoreY - H * 0.012, bhW, H * 0.105);
-  const spW = Math.min(gutter * 0.82, H * 0.19);
-  drawSpirit(ctx, bhX + bhW * 0.12, shoreY + H * 0.002, spW, H * 0.075);
+  // LEFT: Spirit of Ethan Allen docked BESIDE the Boathouse (lakeward side)
+  const spW = Math.min(gutter * 0.52, H * 0.16);
+  const spX = Math.max(2, gutter * 0.02);
+  drawSpirit(ctx, spX, shoreY - H * 0.006, spW, H * 0.078);
+  const bhW = Math.min(gutter * 0.50, H * 0.18);
+  const bhX = spX + spW + gutter * 0.015;
+  drawBoathouse(ctx, bhX, shoreY - H * 0.010, bhW, H * 0.100);
   ctx.globalAlpha = 0.10;
   ctx.fillStyle = '#f0e0c0';
-  ctx.fillRect(bhX + 4, shoreY + 4, bhW * 0.9, H * 0.012);
+  ctx.fillRect(spX + 4, shoreY + 4, (spW + bhW) * 0.85, H * 0.012);
   ctx.globalAlpha = 1;
 
   // RIGHT: marina fills the right gutter

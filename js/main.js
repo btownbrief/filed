@@ -14,10 +14,10 @@ const LS_NEWS = 'filed.news';
 
 // Hyperlocal pool — the "lol, yep, that's Burlington" set. Intentionally small.
 const FILE_LABELS = [
-  'ACT 250', 'THE PIT', 'CHAMPLAIN PARKWAY', 'F-35', 'CITYPLACE',
+  'ACT 250', 'CHAMPLAIN PARKWAY', 'F-35', 'CITYPLACE',
   'MORAN PLANT', 'PUBLIC COMMENT', 'TRAFFIC STUDY',
   'ANOTHER STUDY', 'MORE PUBLIC COMMENT', 'PARKWAY DELAYED',
-  'THE PIT RETURNS', 'CITYPLACE UPDATE', 'F-35 HEARING',
+  'CITYPLACE UPDATE', 'F-35 HEARING',
   'ACT 250 AGAIN', 'COMMITTEE MEETING',
 ];
 
@@ -57,15 +57,17 @@ const MILESTONES = {
   400: 'PROJECT COMPLETE',
 };
 
-// Difficulty modes. HARD ≈ classic Timberman pressure; EASY still bites late.
+// Difficulty modes. Fast drain, stingy gains: the bar is a race you can lose.
+// EASY needs ~1.7 accurate taps/sec from the first file; HARD needs ~2.9 and
+// only escalates. Idle bar-empty time: ~4.4s on EASY, ~2.5s on HARD (from half).
 const MODES = {
   easy: {
-    start: 0.55, drainBase: 0.070, drainRamp: 0.00028, drainCap: 0.150,
-    gainBase: 0.075, gainDecay: 0.00011, gainMin: 0.038,
+    start: 0.55, drainBase: 0.105, drainRamp: 0.00030, drainCap: 0.21,
+    gainBase: 0.062, gainDecay: 0.00010, gainMin: 0.032,
   },
   hard: {
-    start: 0.45, drainBase: 0.085, drainRamp: 0.00032, drainCap: 0.175,
-    gainBase: 0.062, gainDecay: 0.00012, gainMin: 0.030,
+    start: 0.45, drainBase: 0.150, drainRamp: 0.00040, drainCap: 0.27,
+    gainBase: 0.052, gainDecay: 0.00011, gainMin: 0.026,
   },
 };
 
@@ -128,14 +130,36 @@ let timer = 1, started = false;
 let playerSide = -1;          // -1 left, +1 right
 let charKey = localStorage.getItem(LS_CHAR) in CHARS ? localStorage.getItem(LS_CHAR) : 'dot';
 let modeKey = localStorage.getItem(LS_MODE) in MODES ? localStorage.getItem(LS_MODE) : 'easy';
-let newsOn = localStorage.getItem(LS_NEWS) === '1';
+let newsOn = localStorage.getItem(LS_NEWS) !== '0';   // headline mode ON by default
 let headlines = [];           // [{full, short}] from data/headlines.json
 let streak = 0, lastTapAt = -1e9;   // burst-of-rapid-taps momentum
+let stickerIn = 6 + Math.floor(Math.random() * 6);    // segments until next I VOTED sticker
+
+// Shuffled-deck rotation so every stamp/headline gets equal airtime.
+function makeDeck(items) {
+  let order = [], i = 0;
+  const reshuffle = () => {
+    const last = order[order.length - 1];
+    order = items.map((_, k) => k).sort(() => Math.random() - 0.5);
+    if (items.length > 1 && order[0] === last) [order[0], order[1]] = [order[1], order[0]];
+    i = 0;
+  };
+  return {
+    draw() {
+      if (items.length === 0) return null;
+      if (i >= order.length) reshuffle();
+      return items[order[i++]];
+    },
+  };
+}
+let labelDeck = makeDeck(FILE_LABELS);
+let newsDeck = makeDeck([]);
 let stampT = 999;             // ms since last stamp
 let dropOff = 0;              // stack settle animation offset
 let wobble = 0, wobbleV = 0;  // cabinet wobble spring
 let shake = 0;
 let deathT = 0, deathKind = '', deathFly = null;
+let runId = 0;   // guards stale death timeouts across fast restarts
 let overShownAt = 0;
 let beatBestThisRun = false;
 let milestoneTimer = null;
@@ -182,7 +206,14 @@ function nextHazard() {
 
 function pushSegment() {
   const hz = genState.made < 4 ? (genState.made++, 0) : nextHazard();
-  segments.push({ hz, seed: Math.floor(Math.random() * 1e9) });
+  // I VOTED stickers ride on safe sections; grab one by processing that
+  // section from the sticker's side (+3 files). Risk: check the next drawer.
+  let sticker = 0;
+  if (hz === 0 && --stickerIn <= 0) {
+    sticker = Math.random() < 0.5 ? -1 : 1;
+    stickerIn = 10 + Math.floor(Math.random() * 8);
+  }
+  segments.push({ hz, sticker, seed: Math.floor(Math.random() * 1e9) });
 }
 
 function resetRun() {
@@ -191,6 +222,8 @@ function resetRun() {
   for (let i = 0; i < nSegs; i++) pushSegment();
   score = 0; timer = MODES[modeKey].start; started = false;
   streak = 0; lastTapAt = -1e9;
+  stickerIn = 6 + Math.floor(Math.random() * 6);
+  stickerPops.length = 0;
   playerSide = -1; stampT = 999; dropOff = 0; wobble = 0; wobbleV = 0; shake = 0;
   chips.length = 0; papers.length = 0; floats.length = 0;
   beatBestThisRun = false;
@@ -233,6 +266,12 @@ function tap(side) {
   streak = now - lastTapAt < 450 ? Math.min(streak + 1, 8) : 0;
   lastTapAt = now;
   timer = Math.min(1, timer + tapGain());
+
+  // I VOTED sticker: collected by processing its section from its side
+  if (removed.sticker === side) {
+    score += 3;
+    collectSticker(side);
+  }
   scoreEl.textContent = String(score);
   scoreEl.classList.remove('pop'); void scoreEl.offsetWidth; scoreEl.classList.add('pop');
 
@@ -280,7 +319,8 @@ function die(kind) {
     vy: kind === 'timeout' ? -0.1 : -0.55,
     rot: 0, vr: playerSide * (kind === 'timeout' ? 0.004 : 0.012),
   };
-  setTimeout(showGameOver, 700);
+  const id = runId;
+  setTimeout(() => { if (runId === id) showGameOver(); }, 700);
 }
 
 function showGameOver() {
@@ -317,6 +357,7 @@ function showGameOver() {
 }
 
 function startGame() {
+  runId++;
   resetRun();
   state = 'play';
   menuEl.classList.add('hidden');
@@ -365,9 +406,7 @@ function spawnPapers(x, y, n, dir) {
 function spawnFloat() {
   const newsAlive = floats.some((f) => f.news);
   const useNews = newsOn && headlines.length > 0 && !newsAlive && Math.random() < 0.55;
-  const txt = useNews
-    ? headlines[Math.floor(Math.random() * headlines.length)].short.toUpperCase()
-    : FILE_LABELS[Math.floor(Math.random() * FILE_LABELS.length)];
+  const txt = useNews ? newsDeck.draw().short.toUpperCase() : labelDeck.draw();
   floats.push({
     txt,
     news: useNews,
@@ -387,6 +426,7 @@ fetch('data/headlines.json')
   .then((d) => {
     if (d && Array.isArray(d.headlines)) {
       headlines = d.headlines.filter((h) => h && h.short);
+      newsDeck = makeDeck(headlines);
       startTicker();
     }
   })
@@ -403,6 +443,23 @@ function startTicker() {
   show();
   clearInterval(tickerTimer);
   tickerTimer = setInterval(show, 4200);
+}
+
+const stickerPops = [];   // collected-sticker fly-to-score animations
+function collectSticker(side) {
+  stickerPops.push({
+    x: cx + side * (cabW / 2 + drawerExt * 0.3),
+    y: groundY - segH * 0.5,
+    t: 0,
+  });
+  floats.push({
+    txt: '+3  I VOTED!',
+    voted: true,
+    x: cx + side * cabW * 0.4,
+    y: groundY - segH * 2.1,
+    life: 1000,
+  });
+  sound.ding();
 }
 
 function showMilestone(txt) {
@@ -472,6 +529,10 @@ function drawSegment(c, yTop, seg) {
     c.fill();
     c.fillStyle = 'rgba(255,255,255,.25)';
     c.fillRect(x + w * 0.42, yTop + h * 0.56, w * 0.16, h * 0.04);
+    // I VOTED sticker slapped on this section (collect it from that side!)
+    if (seg.sticker !== 0) {
+      drawVotedSticker(c, cx + seg.sticker * w * 0.30, yTop + h * 0.5, h * 0.36, segRnd(seg.seed, 70) * 0.5 - 0.25);
+    }
   } else {
     // OPEN DRAWER — the hazard. Slides far out to one side.
     const dir = seg.hz;                       // -1 left, +1 right
@@ -523,6 +584,31 @@ function drawSegment(c, yTop, seg) {
     const tabX = dir < 0 ? bx - 2 : bx + bw - 8;
     c.beginPath(); c.roundRect(tabX, dTop - 7, 10, 12, 2); c.fill();
   }
+}
+
+// The classic white oval "I VOTED" sticker with the little flag stripes.
+function drawVotedSticker(c, x, y, size, tilt) {
+  c.save();
+  c.translate(x, y);
+  c.rotate(tilt);
+  const rx = size * 0.72, ry = size * 0.5;
+  c.beginPath(); c.ellipse(0, 0, rx, ry, 0, 0, 7);
+  c.fillStyle = '#f7f4ec';
+  c.fill();
+  c.save();
+  c.clip();                                    // stripes stay inside the oval
+  c.fillStyle = '#c22d3a';
+  c.fillRect(-rx, -ry, rx * 2, ry * 0.42);     // red top band
+  c.fillRect(-rx, ry * 0.48, rx * 2, ry * 0.6);// red bottom band
+  c.restore();
+  c.strokeStyle = 'rgba(30,40,90,.3)'; c.lineWidth = Math.max(1, size * 0.04);
+  c.beginPath(); c.ellipse(0, 0, rx, ry, 0, 0, 7); c.stroke();
+  // I VOTED text
+  c.fillStyle = '#23356b';
+  c.font = `900 ${size * 0.30}px "Arial Black", Arial, sans-serif`;
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText('I VOTED', 0, ry * 0.05);
+  c.restore();
 }
 
 function drawCabinet(c) {
@@ -647,6 +733,10 @@ function update(dt, now) {
     f.life -= dt;
     if (f.life <= 0) floats.splice(i, 1);
   }
+  for (let i = stickerPops.length - 1; i >= 0; i--) {
+    stickerPops[i].t += dt;
+    if (stickerPops[i].t > 620) stickerPops.splice(i, 1);
+  }
 }
 
 function render(now, dt) {
@@ -730,19 +820,43 @@ function render(now, dt) {
     ctx.globalAlpha = 1;
   }
 
-  // floating file labels (gold = classic stamps, blue = Btown Brief headlines)
+  // floating labels (gold = stamps, blue = headlines, white/red = stickers).
+  // Headlines render full text over up to two centered lines so nothing clips.
   for (const f of floats) {
     const a = Math.max(0, Math.min(1, f.life / 300));
     ctx.globalAlpha = a;
-    const size = f.news
-      ? Math.max(10, Math.min(segH * 0.21, (W * 0.84) / (f.txt.length * 0.60)))
-      : Math.max(12, segH * 0.24);
-    ctx.font = `800 ${size}px -apple-system, Arial, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(16,14,34,.9)';
-    ctx.strokeText(f.txt, f.x, f.y);
-    ctx.fillStyle = f.news ? '#9fd8ff' : '#ffe08a';
-    ctx.fillText(f.txt, f.x, f.y);
+    ctx.fillStyle = f.news ? '#9fd8ff' : f.voted ? '#ffffff' : '#ffe08a';
+    let lines = [f.txt];
+    let size = Math.max(12, segH * (f.voted ? 0.26 : 0.24));
+    if (f.news) {
+      if (f.txt.length > 24) {
+        const words = f.txt.split(' ');
+        let l1 = '';
+        while (words.length && (l1 + words[0]).length <= f.txt.length / 2) l1 += words.shift() + ' ';
+        lines = [l1.trim(), words.join(' ')];
+      }
+      const longest = Math.max(...lines.map((l) => l.length));
+      size = Math.max(11, Math.min(segH * 0.22, (W * 0.9) / (longest * 0.62)));
+    }
+    ctx.font = `800 ${size}px -apple-system, Arial, sans-serif`;
+    lines.forEach((l, i) => {
+      const ly = f.y + (i - (lines.length - 1) / 2) * size * 1.25;
+      ctx.strokeText(l, f.x, ly);
+      ctx.fillText(l, f.x, ly);
+    });
+  }
+  ctx.globalAlpha = 1;
+
+  // collected stickers fly up to the score
+  for (const p of stickerPops) {
+    const t = Math.min(1, p.t / 600);
+    const e = 1 - (1 - t) * (1 - t);   // ease-out
+    const px2 = p.x + (W / 2 - p.x) * e;
+    const py2 = p.y + (70 - p.y) * e;
+    ctx.globalAlpha = t > 0.85 ? (1 - t) / 0.15 : 1;
+    drawVotedSticker(ctx, px2, py2, segH * (0.4 - 0.18 * e), e * 2.5);
   }
   ctx.globalAlpha = 1;
 
@@ -820,6 +934,7 @@ function renderNewsUI() {
   newsToggle.classList.toggle('on', newsOn);
   newsState.textContent = newsOn ? 'ON' : 'OFF';
   newsHud.classList.toggle('on', newsOn);
+  document.getElementById('news-chip').classList.toggle('hidden', !newsOn);
 }
 function toggleNews() {
   newsOn = !newsOn;
@@ -926,6 +1041,7 @@ window.__filed = {
   get state() { return state; },
   get score() { return score; },
   get segments() { return segments.map((s) => s.hz); },
+  segRaw(i) { return { hz: segments[i].hz, sticker: segments[i].sticker }; },
   get side() { return playerSide; },
   get timer() { return timer; },
   get mode() { return modeKey; },

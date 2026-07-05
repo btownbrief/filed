@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 const FEED = 'https://rss.beehiiv.com/feeds/1BT4mvZXMo.xml';
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'data', 'headlines.json');
 const MAX_HEADLINES = 18;
-const SHORT_LEN = 38;
+const SHORT_LEN = 56;
 
 const decode = (s) => s
   .replace(/<[^>]+>/g, '')

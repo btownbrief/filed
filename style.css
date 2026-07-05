@@ -92,6 +92,20 @@ body {
   to   { box-shadow: 0 0 14px 3px rgba(255,60,40,.55); }
 }
 
+#news-chip {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .18em;
+  color: #9fd8ff;
+  background: rgba(10, 20, 40, .55);
+  border: 1.5px solid rgba(111, 184, 232, .55);
+  border-radius: 20px;
+  padding: 4px 12px;
+  text-shadow: none;
+}
+
 #milestone {
   margin-top: 10px;
   font-size: clamp(13px, 3.8vw, 17px);
