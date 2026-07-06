@@ -4,6 +4,9 @@
 import { sound } from './audio.js';
 import { CHARS } from './characters.js';
 import { currentSeason, renderBackdrop, makeWeather, drawWeather, PALETTES } from './scenery.js';
+import {
+  lbEnabled, getName, submitScore, renamePlayer, fetchTop, monthLabel, playerId,
+} from './leaderboard.js';
 
 /* ============================== constants ============================== */
 
@@ -378,7 +381,99 @@ function showGameOver() {
   }
   gameoverEl.classList.remove('hidden');
   hudEl.classList.add('hidden');
+  updateLeaderboard(score);
 }
+
+/* ============================== leaderboard ============================== */
+
+const lbBox = $('lb'), lbList = $('lbList'), lbStatus = $('lbStatus');
+const lbForm = $('lbForm'), lbNameInput = $('lbNameInput');
+const lbThisBtn = $('lbThisBtn'), lbLastBtn = $('lbLastBtn'), lbRenameBtn = $('lbRenameBtn');
+let lbMonthOffset = 0;
+
+if (lbEnabled()) {
+  lbBox.classList.remove('hidden');
+  lbThisBtn.textContent = `🏆 ${monthLabel(0).toUpperCase()}`;
+  lbLastBtn.textContent = monthLabel(-1).toUpperCase();
+}
+
+async function updateLeaderboard(s) {
+  if (!lbEnabled()) return;
+  if (!getName()) {
+    // first run: ask for a name before joining the board
+    lbForm.classList.remove('hidden');
+    lbRenameBtn.classList.add('hidden');
+    lbStatus.textContent = 'PICK A NAME TO JOIN THE MONTHLY LEADERBOARD!';
+    lbList.innerHTML = '';
+    lbForm.dataset.pendingScore = String(s);
+    return;
+  }
+  try {
+    await submitScore(s);
+  } catch { /* offline — still try to show the board */ }
+  renderBoard();
+}
+
+async function renderBoard() {
+  lbForm.classList.add('hidden');
+  lbRenameBtn.classList.remove('hidden');
+  lbStatus.textContent = 'LOADING…';
+  try {
+    const rows = await fetchTop(lbMonthOffset);
+    const me = playerId();
+    lbList.innerHTML = '';
+    rows.slice(0, 10).forEach((r, i) => {
+      const li = document.createElement('li');
+      if (r.player_id === me) li.className = 'me';
+      const medal = ['🥇', '🥈', '🥉'][i];
+      li.innerHTML = `<span class="rank">${medal || i + 1}</span><span class="nm"></span><span class="sc"></span>`;
+      li.querySelector('.nm').textContent = r.name;
+      li.querySelector('.sc').textContent = r.score;
+      lbList.appendChild(li);
+    });
+    const myRank = rows.findIndex((r) => r.player_id === me);
+    lbStatus.textContent = rows.length === 0
+      ? 'NO SCORES YET THIS MONTH — BE THE FIRST!'
+      : myRank >= 0 ? `YOU'RE #${myRank + 1} OF ${rows.length} THIS MONTH` : '';
+  } catch {
+    lbStatus.textContent = 'LEADERBOARD UNAVAILABLE (OFFLINE?)';
+  }
+}
+
+$('lbSaveBtn').addEventListener('click', async () => {
+  const name = lbNameInput.value.trim();
+  if (!name) { lbNameInput.focus(); return; }
+  sound.blip();
+  const pending = Number(lbForm.dataset.pendingScore || 0);
+  lbForm.dataset.pendingScore = '';
+  try {
+    await renamePlayer(name); // saves locally + updates any existing rows
+    if (pending > 0) await submitScore(pending);
+  } catch { /* offline */ }
+  renderBoard();
+});
+lbNameInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') $('lbSaveBtn').click();
+});
+lbRenameBtn.addEventListener('click', () => {
+  sound.blip();
+  lbNameInput.value = getName();
+  lbForm.classList.remove('hidden');
+  lbRenameBtn.classList.add('hidden');
+  lbNameInput.focus();
+});
+lbThisBtn.addEventListener('click', () => {
+  lbMonthOffset = 0;
+  lbThisBtn.classList.add('sel');
+  lbLastBtn.classList.remove('sel');
+  renderBoard();
+});
+lbLastBtn.addEventListener('click', () => {
+  lbMonthOffset = -1;
+  lbLastBtn.classList.add('sel');
+  lbThisBtn.classList.remove('sel');
+  renderBoard();
+});
 
 const bestHud = document.getElementById('best-hud');
 function updateBestHud() {
@@ -1029,6 +1124,7 @@ document.addEventListener('contextmenu', (e) => {
 
 gameoverEl.addEventListener('pointerdown', (e) => {
   if (e.target === goMenuBtn || e.target.closest('a')) return;  // let links be links
+  if (e.target.closest('#lb')) return;  // leaderboard taps shouldn't restart
   if (performance.now() - overShownAt < 350) return;
   e.preventDefault();
   sound.unlock();
@@ -1056,6 +1152,7 @@ muteBtn.addEventListener('pointerdown', (e) => {
 });
 
 window.addEventListener('keydown', (e) => {
+  if (document.activeElement === lbNameInput) return;  // typing a name shouldn't restart
   if (e.repeat && e.code === 'Space') return;
   const left = e.code === 'ArrowLeft' || e.code === 'KeyA';
   const right = e.code === 'ArrowRight' || e.code === 'KeyD';
