@@ -1,8 +1,8 @@
-name: Update Btown Brief headlines
+name: Update BTown Brief headlines
 
 on:
   schedule:
-    # Btown Brief publishes Monday and Friday mornings (Eastern).
+    # BTown Brief publishes Monday and Friday mornings (Eastern).
     # 14:30 UTC = 10:30 EDT / 09:30 EST — safely after the edition exists
     # in both daylight-saving regimes.
     - cron: '30 14 * * 1,5'
@@ -27,7 +27,7 @@ jobs:
             git config user.name "btown-brief-bot"
             git config user.email "actions@github.com"
             git add data/headlines.json
-            git commit -m "Update Btown Brief headlines"
+            git commit -m "Update BTown Brief headlines"
             git push
           else
             echo "No headline changes."

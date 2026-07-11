@@ -47,10 +47,10 @@ because the game uses ES modules.)
 - Force a season: `?season=winter` / `spring` / `summer` / `fall`
 - `window.__filed` exposes game state in the console for poking around
 
-## Btown Brief headline mode
+## BTown Brief headline mode
 
 The optional **📰 headline mode** mixes real Burlington headlines from the
-[Btown Brief](https://www.btownbrief.com) newsletter into the flying paperwork
+[BTown Brief](https://www.btownbrief.com) newsletter into the flying paperwork
 (toggle it on the menu, or with the 📰 button during play).
 
 Headlines come from a small static file, `data/headlines.json` — players never
@@ -59,7 +59,7 @@ hit the newsletter while playing. A GitHub Actions workflow
 
 - **Schedule**: Monday + Friday at 14:30 UTC (10:30 EDT / 9:30 EST), safely
   after the morning editions publish in either daylight-saving regime.
-- **Manual run**: Actions tab → "Update Btown Brief headlines" → Run workflow.
+- **Manual run**: Actions tab → "Update BTown Brief headlines" → Run workflow.
 - **Local test**: `node scripts/update-headlines.mjs` (Node 18+, no deps).
 
 The updater reads the Beehiiv RSS feed (each RSS item is a full edition with

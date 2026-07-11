@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Btown Brief headline updater for FILED!
+// BTown Brief headline updater for FILED!
 //
-// Fetches the Btown Brief RSS feed (each RSS item is a full newsletter
+// Fetches the BTown Brief RSS feed (each RSS item is a full newsletter
 // edition with inline HTML), extracts the story headlines from the newest
 // edition's "Local News" section, and writes them to data/headlines.json
 // for the game to load. Run manually with:  node scripts/update-headlines.mjs

@@ -548,7 +548,7 @@ function spawnFloat() {
   sound.flutter();
 }
 
-/* ============================== Btown Brief headlines ============================== */
+/* ============================== BTown Brief headlines ============================== */
 // Static JSON produced twice weekly by .github/workflows/headlines.yml.
 // If it's missing or stale we silently fall back to the classic stamp pool.
 let editionLink = '', editionName = '';
