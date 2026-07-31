@@ -23,7 +23,14 @@
     <div id="score-wrap">
       <div id="score">0</div>
       <div id="score-label">FILES</div>
-      <div id="best-hud"></div>
+      <div id="score-meta">
+        <div id="momentum" aria-label="Momentum multiplier">
+          <span id="momentum-value">×1.0</span>
+          <span class="momentum-label">MOMENTUM</span>
+          <span class="momentum-track"><span id="momentum-fill"></span></span>
+        </div>
+        <div id="best-hud"></div>
+      </div>
     </div>
     <div id="timer-wrap"><div id="timer-fill"></div></div>
     <div id="news-chip" class="hidden">📰 REAL BTOWN HEADLINES</div>
@@ -74,6 +81,11 @@
   <div id="gameover" class="screen hidden">
     <div class="menu-inner">
       <div id="go-stamp"><span id="go-verdict">PERMIT DENIED</span></div>
+      <div id="go-cause" role="status" aria-live="polite"></div>
+      <div id="fatal-timer" aria-hidden="true">
+        <span>URGENCY: EMPTY</span>
+        <span class="fatal-timer-track"></span>
+      </div>
       <div id="go-score-wrap">
         <div id="go-score">0</div>
         <div id="go-score-label">FILES PROCESSED</div>

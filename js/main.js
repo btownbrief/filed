@@ -93,10 +93,19 @@ const ctx = canvas.getContext('2d');
 const $ = (id) => document.getElementById(id);
 const hudEl = $('hud'), scoreEl = $('score'), timerWrap = $('timer-wrap'),
   timerFill = $('timer-fill'), milestoneEl = $('milestone'),
+  momentumEl = $('momentum'), momentumValue = $('momentum-value'),
+  momentumFill = $('momentum-fill'),
   menuEl = $('menu'), gameoverEl = $('gameover'), muteBtn = $('mute'),
   goVerdict = $('go-verdict'), goScore = $('go-score'), goJoke = $('go-joke'),
+  goCause = $('go-cause'), fatalTimer = $('fatal-timer'),
   goBest = $('go-best'), retryBtn = $('retry'), goMenuBtn = $('go-menu'),
   bestLine = $('best-line');
+
+const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+let reduceMotion = motionQuery.matches;
+const syncMotionPreference = (e) => { reduceMotion = e.matches; };
+if (motionQuery.addEventListener) motionQuery.addEventListener('change', syncMotionPreference);
+else motionQuery.addListener(syncMotionPreference);
 
 /* ============================== layout ============================== */
 
@@ -180,6 +189,7 @@ let beatBestThisRun = false;
 let milestoneTimer = null;
 let time = 0;
 let clouds = [];
+let edgeFlash = null;         // coalesced near-miss highlight; never queued
 
 const chips = [];   // flying processed segments
 const papers = [];  // paper scrap particles
@@ -244,9 +254,13 @@ function resetRun() {
   playerSide = -1; stampT = 999; dropOff = 0; wobble = 0; wobbleV = 0; shake = 0;
   chips.length = 0; papers.length = 0; floats.length = 0;
   beatBestThisRun = false;
+  edgeFlash = null;
   deathFly = null;
   scoreEl.textContent = '0';
-  timerWrap.classList.remove('low');
+  timerWrap.classList.remove('low', 'fatal');
+  fatalTimer.classList.remove('show');
+  goCause.textContent = '';
+  updateMomentumHud(performance.now());
   hideMilestone();
 }
 
@@ -262,6 +276,15 @@ function tapGain() {
   const m = MODES[modeKey];
   const base = Math.max(m.gainMin, m.gainBase - score * m.gainDecay);
   return base * (1 + streak * 0.05);
+}
+
+function updateMomentumHud(now) {
+  const multiplier = 1 + streak * 0.05;
+  const remaining = streak > 0 ? Math.max(0, 1 - (now - lastTapAt) / 900) : 0;
+  momentumValue.textContent = `×${multiplier.toFixed(1)}`;
+  momentumFill.style.transform = `scaleX(${remaining})`;
+  momentumEl.style.setProperty('--momentum-scale', String(1 + streak * 0.025));
+  momentumEl.classList.toggle('active', streak > 0);
 }
 
 /* ============================== core tap ============================== */
@@ -283,6 +306,7 @@ function tap(side) {
   streak = now - lastTapAt < 450 ? Math.min(streak + 1, 8) : 0;
   lastTapAt = now;
   timer = Math.min(1, timer + tapGain());
+  updateMomentumHud(now);
 
   // I VOTED sticker: collected by processing its section from its side
   if (removed.sticker === side) {
@@ -291,7 +315,7 @@ function tap(side) {
   }
   scoreEl.textContent = String(score);
   scoreEl.classList.remove('pop'); void scoreEl.offsetWidth; scoreEl.classList.add('pop');
-  if (score > best) updateBestHud();   // BEST climbs live once you pass it
+  updateBestHud();
 
   // juice
   stampT = 0;
@@ -302,7 +326,13 @@ function tap(side) {
   spawnPapers(cx, groundY - segH * 0.5, 5 + Math.floor(Math.random() * 4), side);
   if (Math.random() < 0.22) spawnFloat();
   sound.stamp(1);
-  if (Math.random() < 0.5) sound.drawerClack();
+  const nearMiss = segments[0].hz === -playerSide;
+  if (nearMiss) {
+    edgeFlash = { side: segments[0].hz, life: 220 };
+    sound.nearMiss();
+  } else if (Math.random() < 0.5) {
+    sound.drawerClack();
+  }
 
   checkMilestones();
 
@@ -327,6 +357,8 @@ function die(kind) {
   state = 'dying';
   deathKind = kind;
   deathT = 0;
+  edgeFlash = null;
+  timerWrap.classList.toggle('fatal', kind === 'timeout');
   shake = 12;
   wobbleV += playerSide * 0.05;
   if (kind === 'timeout') sound.timeout(); else sound.death();
@@ -346,6 +378,11 @@ function showGameOver() {
   overShownAt = performance.now();
   const lines = deathKind === 'timeout' ? TIMEOUT_LINES : DEATH_LINES;
   goVerdict.textContent = lines[Math.floor(Math.random() * lines.length)];
+  const timedOut = deathKind === 'timeout';
+  goCause.textContent = timedOut
+    ? 'TIMEOUT — THE URGENCY METER HIT EMPTY'
+    : 'CRUSHED — AN OPEN DRAWER REACHED YOUR SIDE';
+  fatalTimer.classList.toggle('show', timedOut);
   goScore.textContent = String(score);
   document.getElementById('go-score-label').textContent =
     score === 1 ? 'FILE PROCESSED' : 'FILES PROCESSED';
@@ -381,6 +418,7 @@ function showGameOver() {
   }
   gameoverEl.classList.remove('hidden');
   hudEl.classList.add('hidden');
+  retryBtn.focus({ preventScroll: true });
   updateLeaderboard(score);
 }
 
@@ -477,8 +515,11 @@ lbLastBtn.addEventListener('click', () => {
 
 const bestHud = document.getElementById('best-hud');
 function updateBestHud() {
-  const beating = score > 0 && score >= best && best > 0;
-  bestHud.textContent = best > 0 ? `BEST ${Math.max(best, score)}` : '';
+  const beating = score > best && best > 0;
+  const toBeat = best - score + 1;
+  if (best <= 0) bestHud.textContent = '';
+  else if (score > 0 && toBeat > 0 && toBeat <= 15) bestHud.textContent = `${toBeat} TO BEAT`;
+  else bestHud.textContent = `BEST ${Math.max(best, score)}`;
   bestHud.classList.toggle('beaten', beating);
 }
 
@@ -504,6 +545,7 @@ function toMenu() {
 /* ============================== effects ============================== */
 
 function spawnChip(seg, side) {
+  if (reduceMotion) return;
   chips.push({
     x: cx, y: groundY - segH / 2,
     vx: -side * (0.5 + Math.random() * 0.25),
@@ -515,6 +557,7 @@ function spawnChip(seg, side) {
 }
 
 function spawnPapers(x, y, n, dir) {
+  if (reduceMotion) return;
   for (let i = 0; i < n; i++) {
     papers.push({
       x: x + (Math.random() - 0.5) * cabW * 0.7,
@@ -527,7 +570,7 @@ function spawnPapers(x, y, n, dir) {
       life: 1200 + Math.random() * 600,
     });
   }
-  while (papers.length > 90) papers.shift();
+  while (papers.length > 30) papers.shift();
 }
 
 function spawnFloat() {
@@ -581,11 +624,13 @@ function startTicker() {
 
 const stickerPops = [];   // collected-sticker fly-to-score animations
 function collectSticker(side) {
-  stickerPops.push({
-    x: cx + side * (cabW / 2 + drawerExt * 0.3),
-    y: groundY - segH * 0.5,
-    t: 0,
-  });
+  if (!reduceMotion) {
+    stickerPops.push({
+      x: cx + side * (cabW / 2 + drawerExt * 0.3),
+      y: groundY - segH * 0.5,
+      t: 0,
+    });
+  }
   floats.push({
     txt: '+3  I VOTED!',
     voted: true,
@@ -745,7 +790,7 @@ function drawCabinet(c) {
   c.save();
   // wobble around the base
   c.translate(cx, groundY);
-  c.rotate(wobble);
+  c.rotate(reduceMotion ? 0 : wobble);
   c.translate(-cx, -groundY);
 
   for (let i = 0; i < segments.length; i++) {
@@ -832,7 +877,7 @@ function frame(now) {
 function update(dt, now) {
   // physics-ish updates
   stampT += dt;
-  dropOff = Math.max(0, dropOff - dt * segH / 75);
+  dropOff = reduceMotion ? 0 : Math.max(0, dropOff - dt * segH / 75);
   // wobble spring (clamped so the tower never visibly keels over)
   wobbleV += -wobble * 0.012 * dt - wobbleV * 0.006 * dt;
   wobble += wobbleV * dt * 0.06;
@@ -846,9 +891,10 @@ function update(dt, now) {
     timerWrap.classList.toggle('low', timer < 0.3);
     if (streak > 0 && now - lastTapAt > 900) streak = 0;  // hesitation kills momentum
   }
+  updateMomentumHud(now);
   timerFill.style.transform = `scaleX(${timer})`;
 
-  if (deathFly) {
+  if (deathFly && !reduceMotion) {
     deathFly.vy += dt * 0.0016;
     deathFly.x += deathFly.vx * dt;
     deathFly.y += deathFly.vy * dt;
@@ -882,29 +928,71 @@ function update(dt, now) {
     stickerPops[i].t += dt;
     if (stickerPops[i].t > 620) stickerPops.splice(i, 1);
   }
+  if (edgeFlash) {
+    edgeFlash.life -= dt;
+    if (edgeFlash.life <= 0) edgeFlash = null;
+  }
+}
+
+function drawPaceAtmosphere(c, now) {
+  const tier = score >= 200 ? 4 : score >= 120 ? 3 : score >= 60 ? 2 : score >= 25 ? 1 : 0;
+  if (tier === 0) return;
+
+  c.fillStyle = `rgba(112, 28, 66, ${tier * 0.025})`;
+  c.fillRect(0, 0, W, groundY);
+  if (reduceMotion) return;
+
+  c.strokeStyle = `rgba(255, 225, 180, ${0.07 + tier * 0.025})`;
+  c.lineWidth = 1 + tier * 0.25;
+  c.beginPath();
+  for (let i = 0; i < tier * 2; i++) {
+    const left = i % 2 === 0;
+    const lane = (Math.floor(i / 2) + 1) / (tier + 1);
+    const x = left ? W * (0.04 + lane * 0.18) : W * (0.96 - lane * 0.18);
+    const y = (i * 97 + now * (0.045 + tier * 0.012)) % groundY;
+    c.moveTo(x, y);
+    c.lineTo(x + (left ? 4 : -4), y + 12 + tier * 5);
+  }
+  c.stroke();
+}
+
+function drawNearMissFlash(c) {
+  if (!edgeFlash) return;
+  const alpha = reduceMotion ? 0.28 : 0.38 * Math.min(1, edgeFlash.life / 100);
+  const left = edgeFlash.side < 0;
+  const grad = c.createLinearGradient(left ? 0 : W, 0, left ? W * 0.3 : W * 0.7, 0);
+  grad.addColorStop(0, `rgba(255, 224, 120, ${alpha})`);
+  grad.addColorStop(1, 'rgba(255, 224, 120, 0)');
+  c.fillStyle = grad;
+  c.fillRect(left ? 0 : W * 0.7, 0, W * 0.3, groundY);
 }
 
 function render(now, dt) {
   ctx.clearRect(0, 0, W, H);
   // static backdrop
   ctx.drawImage(bgCanvas, 0, 0, W, H);
+  drawPaceAtmosphere(ctx, now);
   // drifting clouds
   drawClouds(ctx, now);
 
   ctx.save();
-  if (shake > 0.3) {
+  if (!reduceMotion && shake > 0.3) {
     ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
   }
 
   drawCabinet(ctx);
+  drawNearMissFlash(ctx);
 
   // highlight the drawer that got you, so the death reads as fair
-  if ((state === 'dying' || state === 'over') && deathKind !== 'timeout' && deathT < 900) {
-    const flash = 0.5 + Math.sin(deathT * 0.03) * 0.35;
+  if ((state === 'dying' || state === 'over') && deathKind !== 'timeout' &&
+    (state === 'over' || deathT < 900)) {
+    const flash = state === 'over' || reduceMotion ? 0.75 : 0.5 + Math.sin(deathT * 0.03) * 0.35;
     ctx.strokeStyle = `rgba(255, 60, 40, ${Math.max(0, flash)})`;
     ctx.lineWidth = 4;
     const dTop = groundY - segH * 0.9;
     const bx = playerSide < 0 ? cx - cabW / 2 - drawerExt : cx + cabW / 2;
+    ctx.fillStyle = 'rgba(255, 60, 40, .13)';
+    ctx.fillRect(bx - 3, dTop - 3, drawerExt + 6, segH * 0.8 + 6);
     ctx.strokeRect(bx - 3, dTop - 3, drawerExt + 6, segH * 0.8 + 6);
   }
 

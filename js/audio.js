@@ -88,6 +88,15 @@ class SoundEngine {
     this._tone(210 + Math.random() * 40, 0.05, { type: 'triangle', gain: 0.12, slideTo: 150 });
   }
 
+  // A drawer just missed on the far side: quick, airy, and quieter than a stamp.
+  nearMiss() {
+    if (!this.ready()) return;
+    this._noise(0.18, {
+      type: 'bandpass', freq: 2400, q: 0.8, gain: 0.09, sweepTo: 650, attack: 0.012,
+    });
+    this._tone(280, 0.13, { type: 'sine', gain: 0.035, slideTo: 520, attack: 0.012 });
+  }
+
   // Little paper flutter for label popups
   flutter() {
     if (!this.ready()) return;
